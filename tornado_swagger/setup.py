@@ -3,6 +3,7 @@ import os
 import typing
 
 import tornado.web
+from pydantic import BaseModel
 
 from tornado_swagger._builders import generate_doc_from_endpoints
 from tornado_swagger._handlers import SwaggerSpecHandler, SwaggerUiHandler
@@ -37,6 +38,26 @@ def export_swagger(
         security=security,
         api_definition_version=api_definition_version,
     )
+
+
+def swagger_decorator(
+        *,
+        responses: typing.Dict[int, typing.Dict[str, typing.Any]],
+        request: typing.Optional[typing.Type[BaseModel]] = None,
+        query: typing.Optional[typing.Type[BaseModel]] = None,
+        tags: typing.Optional[typing.List[str]] = None
+):
+    def decorator(f: typing.Callable) -> typing.Callable:
+        setattr(f, "_is_swagger_handler", True)
+        setattr(f, "_response_models", responses)
+        if request:
+            setattr(f, "_request_model", request)
+        if query:
+            setattr(f, "_query_params", query)
+        if tags:
+            setattr(f, "_swagger_tags", tags)
+        return f
+    return decorator
 
 
 def setup_swagger(
