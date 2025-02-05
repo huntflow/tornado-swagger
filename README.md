@@ -1,4 +1,4 @@
-## This is fork of the original tornado-swagger with pydantic support
+## This is a fork of the original tornado-swagger with pydantic support
 
 
 ## Usage
