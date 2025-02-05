@@ -73,7 +73,7 @@ class CalculusHandler(tornado.web.RequestHandler):
         tags=["Calculus"]
     )
     def post(self, term_one: int, term_two: int):
-        # still need to cast parameters to int. tornado gives zero fucks about your annotations
+        # still need to cast parameters to int. tornado ignores your annotations
         term_one = int(term_one)
         term_two = int(term_two)
 
