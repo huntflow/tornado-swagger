@@ -14,6 +14,9 @@ import yaml
 
 from tornado_swagger.const import API_OPENAPI_3, API_SWAGGER_2, API_OPENAPI_3_PYDANTIC
 
+if typing.TYPE_CHECKING:
+    from tornado_swagger.setup import SwaggerMethodInfo
+
 SWAGGER_TEMPLATE = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "templates", "swagger.yaml")
 )
@@ -124,12 +127,12 @@ class PydanticRoutesProcessor:
         for method_name in handler.SUPPORTED_METHODS:
             method_name = method_name.lower()
             method_callable = getattr(handler, method_name)
-            is_swagger_handler = getattr(method_callable, "_is_swagger_handler", False)
-            if is_swagger_handler:
-                response_models = getattr(method_callable, "_response_models", None)
-                request_model = getattr(method_callable, "_request_model", None)
-                query_params = getattr(method_callable, "_query_params", None)
-                tags = getattr(method_callable, "_swagger_tags", None)
+            swagger_info: "SwaggerMethodInfo" = getattr(method_callable, "_swagger_info", None)
+            if swagger_info:
+                response_models = swagger_info.responses
+                request_model = swagger_info.request
+                query_params = swagger_info.query
+                tags = swagger_info.tags
                 input_parameters = input_parameters_getter(method_callable)
                 out.update(
                     {

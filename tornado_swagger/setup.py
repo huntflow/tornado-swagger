@@ -1,6 +1,7 @@
 """Setup"""
 import os
 import typing
+from dataclasses import dataclass
 
 import tornado.web
 from pydantic import BaseModel
@@ -40,6 +41,14 @@ def export_swagger(
     )
 
 
+@dataclass
+class SwaggerMethodInfo:
+    responses: typing.Dict[int, typing.Dict[str, typing.Any]]
+    request: typing.Optional[typing.Type[BaseModel]] = None
+    query: typing.Optional[typing.Type[BaseModel]] = None
+    tags: typing.Optional[typing.List[str]] = None
+
+
 def swagger_decorator(
         *,
         responses: typing.Dict[int, typing.Dict[str, typing.Any]],
@@ -48,14 +57,7 @@ def swagger_decorator(
         tags: typing.Optional[typing.List[str]] = None
 ):
     def decorator(f: typing.Callable) -> typing.Callable:
-        setattr(f, "_is_swagger_handler", True)
-        setattr(f, "_response_models", responses)
-        if request:
-            setattr(f, "_request_model", request)
-        if query:
-            setattr(f, "_query_params", query)
-        if tags:
-            setattr(f, "_swagger_tags", tags)
+        f._swagger_info = SwaggerMethodInfo(responses, request, query, tags)
         return f
     return decorator
 
