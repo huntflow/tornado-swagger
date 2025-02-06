@@ -30,7 +30,7 @@ CLASSIFIERS = [
 with open(join(dirname(__file__), "requirements.txt"), encoding="utf-8") as f:
     PACKAGES_REQUIRED = f.read().splitlines()
 
-with open(join(dirname(__file__), "README.rst"), encoding="utf-8") as f:
+with open(join(dirname(__file__), "README.md"), encoding="utf-8") as f:
     LONG_DESCRIPTION = f.read()
 
 
