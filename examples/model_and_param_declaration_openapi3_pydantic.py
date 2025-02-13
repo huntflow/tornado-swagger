@@ -49,6 +49,11 @@ class ErrorResponse(BaseModel):
     description: str = Field(..., example="error")
 
 
+class TestHandlerWithoutSwagger(tornado.web.RequestHandler):
+    def get(self):
+        self.write({"status": "ok"})
+
+
 class NestedResponseHandler(tornado.web.RequestHandler):
     @swagger_decorator(
         responses={200: {"model": NestedResponse, "description": "Response with nested models"}},
@@ -118,20 +123,22 @@ def parse_body_params(body: bytes, model_type: Type[T]) -> T:
 
 
 class Application(tornado.web.Application):
-    _routes = [
-        tornado.web.url(
-            r"/term-one/(?P<term_one>[0-9\-]+)/term-two/(?P<term_two>[0-9\-]+)/sum",
-            CalculusHandler
-        ),
-        tornado.web.url(r"/status", NestedResponseHandler),
-        tornado.web.url(r"/static/(.*)", tornado.web.StaticFileHandler, {"path": "/var/www"}),
-    ]
-
     def __init__(self):
         settings = {"debug": True}
+        swagger_routes = [
+            (
+                r"/term-one/(?P<term_one>[0-9\-]+)/term-two/(?P<term_two>[0-9\-]+)/sum",
+                CalculusHandler
+            ),
+            (r"/status", NestedResponseHandler),
+            (r"/static/(.*)", tornado.web.StaticFileHandler, {"path": "/var/www"}),
+        ]
+        other_routes = [
+            (r"/test", TestHandlerWithoutSwagger),
+        ]
 
         setup_swagger(
-            self._routes,
+            swagger_routes,
             swagger_url="/doc",
             api_base_url="/",
             description="",
@@ -141,7 +148,8 @@ class Application(tornado.web.Application):
             schemes=["https"],
             api_definition_version=API_OPENAPI_3_PYDANTIC,
         )
-        super(Application, self).__init__(self._routes, **settings)
+        all_routes = swagger_routes + other_routes
+        super(Application, self).__init__(all_routes, **settings)
 
 
 if __name__ == "__main__":

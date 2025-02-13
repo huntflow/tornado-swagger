@@ -110,10 +110,11 @@ class PydanticRoutesProcessor:
 
     def extract_paths_pydantic(self, routes):
         for route in routes:
+            tornado_route = tornado.web.url(*route)
             for method_name, method_description in self._build_doc_from_pydantic_handler(
-                    route.target
+                    tornado_route.target
             ).items():
-                path_handler = _format_handler_path(route, method_name)
+                path_handler = _format_handler_path(tornado_route, method_name)
                 if path_handler is None:
                     continue
 
@@ -369,7 +370,7 @@ class Swagger2DocBuilder(BaseDocBuilder):
 
     def generate_doc(
         self,
-        routes: typing.List[tornado.web.URLSpec],
+        routes: typing.List[typing.Union[typing.Tuple[str, typing.Callable], tornado.web.URLSpec]],
         *,
         api_base_url,
         description,
@@ -507,7 +508,7 @@ doc_builders = {b.schema: b for b in [Swagger2DocBuilder(), OpenApiDocBuilder(),
 
 
 def generate_doc_from_endpoints(
-    routes: typing.List[tornado.web.URLSpec],
+    routes: typing.List[typing.Union[typing.Tuple[str, typing.Callable], tornado.web.URLSpec]],
     *,
     api_base_url,
     description,

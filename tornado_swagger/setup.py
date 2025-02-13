@@ -63,7 +63,7 @@ def swagger_decorator(
 
 
 def setup_swagger(
-    routes: typing.List[tornado.web.URLSpec],
+    routes: typing.List[typing.Union[typing.Tuple[str, typing.Callable], tornado.web.URLSpec]],
     *,
     swagger_url: str = "/api/doc",
     api_base_url: str = "/",
