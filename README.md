@@ -12,3 +12,4 @@ See examples/model_and_param_declaration_openapi3_pydantic.py for an example wit
 - Multiple response models
 - Request headers definition
 - Raise error for different models with same names (now different model with same name of already registered model will be ignored)
+- Fix nested models description handling (now if you add description to nested pydantic model, it will break componen ref)
