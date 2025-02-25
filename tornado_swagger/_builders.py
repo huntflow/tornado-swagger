@@ -174,7 +174,7 @@ class PydanticRoutesProcessor:
             result["parameters"] = parameters
 
         if request:
-            model_spec = request.schema(ref_template="#/components/schemas/{model}")
+            model_spec = request.schema(by_alias=False, ref_template="#/components/schemas/{model}")
             if "definitions" in model_spec:
                 self._add_components_from_definitions(model_spec.pop("definitions"))
 
@@ -193,7 +193,7 @@ class PydanticRoutesProcessor:
             description = response_model.get("description", None)
             if not description:
                 description = self._generate_default_description(status_code)
-            model_spec = model.schema(ref_template="#/components/schemas/{model}")
+            model_spec = model.schema(by_alias=False, ref_template="#/components/schemas/{model}")
             model_name = model.__name__
             # could cause conflicts for classes with same name
             if model_name not in self.components["schemas"]:
@@ -219,7 +219,7 @@ class PydanticRoutesProcessor:
 
     @staticmethod
     def _build_request_body_doc(model: BaseModel) -> dict:
-        model_schema = model.schema(ref_template="#/components/schemas/{model}")
+        model_schema = model.schema(by_alias=False, ref_template="#/components/schemas/{model}")
 
         request_body = {
             "content": {
@@ -249,7 +249,7 @@ class PydanticRoutesProcessor:
                 })
 
         if query:
-            query_schema = query.schema()
+            query_schema = query.schema(by_alias=False, ref_template="#/components/schemas/{model}")
             for parameter_name, schema in query_schema["properties"].items():
                 parameters.append({
                     "in": "query",

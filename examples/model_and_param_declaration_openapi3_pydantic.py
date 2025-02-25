@@ -19,7 +19,8 @@ class Tier2NestedItem(BaseModel):
 
 
 class NestedItem(BaseModel):
-    item_name: str = Field(..., example="item_name")
+    # original name will be used for swagger
+    item_name: str = Field(..., example="item_name", alias="item_name_alias")
     tier2_nested_item: Optional[Tier2NestedItem] = Field(None)
 
 
