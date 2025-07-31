@@ -193,7 +193,7 @@ class PydanticRoutesProcessor:
             description = response_model.get("description", None)
             if not description:
                 description = self._generate_default_description(status_code)
-            model_spec = model.schema(by_alias=False, ref_template="#/components/schemas/{model}")
+            model_spec = self.get_pydantic_schema(model)
             model_name = model.__name__
             # could cause conflicts for classes with same name
             if model_name not in self.components["schemas"]:
@@ -216,6 +216,17 @@ class PydanticRoutesProcessor:
         if tags:
             result["tags"] = tags
         return result
+
+    @staticmethod
+    def get_pydantic_schema(model) -> dict:
+        # если BaseModel - можем вытащить напрямую
+        if hasattr(model, "schema"):
+            return model.schema(by_alias=False, ref_template="#/components/schemas/{model}")
+        # если датакласс (pydantic 1.1) - тащим через встроенную модель
+        if hasattr(model, "__pydantic_model__"):
+            return model.__pydantic_model__.schema(by_alias=False, ref_template="#/components/schemas/{model}")
+
+        raise TypeError(f"Unsupported model type for OpenAPI schema: {model}")
 
     @staticmethod
     def _build_request_body_doc(model: BaseModel) -> dict:
