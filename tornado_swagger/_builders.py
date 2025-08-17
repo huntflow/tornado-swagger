@@ -139,12 +139,13 @@ class PydanticRoutesProcessor:
                 response_models = swagger_info.responses
                 request_model = swagger_info.request
                 query_params = swagger_info.query
+                description = getattr(swagger_info, "description", None)
                 tags = swagger_info.tags
                 input_parameters = input_parameters_getter(method_callable)
                 out.update(
                     {
                         method_name: self.build_pydantic_docs(
-                            input_parameters, response_models, request_model, query_params, tags,
+                            input_parameters, response_models, request_model, query_params, tags, description=description
                         )
                     }
                 )
@@ -200,16 +201,9 @@ class PydanticRoutesProcessor:
         responses = {}
         for status_code, response_model in response_models.items():
             model = response_model.get("model", None)
-
             description = response_model.get("description", None)
             if not description:
                 description = self._generate_default_description(status_code)
-
-            # если ручка отвечает только кодом, без модели
-            if model is None:
-                responses[status_code] = {"description": description}
-                continue
-
             model_spec = self.get_pydantic_schema(model)
             model_name = model.__name__
             # could cause conflicts for classes with same name
