@@ -110,7 +110,13 @@ class PydanticRoutesProcessor:
 
     def extract_paths_pydantic(self, routes):
         for route in routes:
-            tornado_route = tornado.web.url(*route)
+            if isinstance(route, tornado.web.URLSpec):
+                tornado_route = route
+            elif isinstance(route, (list, tuple)):
+                tornado_route = tornado.web.url(*route)
+            else:
+                raise TypeError(f"Unsupported route type: {type(route)!r}")
+
             for method_name, method_description in self._build_doc_from_pydantic_handler(
                     tornado_route.target
             ).items():
@@ -166,15 +172,19 @@ class PydanticRoutesProcessor:
         request: typing.Optional[typing.Type[BaseModel]] = None,
         query: typing.Optional[typing.Type[BaseModel]] = None,
         tags: typing.Optional[typing.List[str]] = None,
+        *,
+        description=None,
     ):
         result = {}
 
+        if description:
+            result["description"] = description
         parameters = self._build_input_and_query_doc(input_parameters, query)
         if parameters:
             result["parameters"] = parameters
 
         if request:
-            model_spec = request.schema(by_alias=False, ref_template="#/components/schemas/{model}")
+            model_spec = self.get_pydantic_schema(request)
             if "definitions" in model_spec:
                 self._add_components_from_definitions(model_spec.pop("definitions"))
 
@@ -223,14 +233,15 @@ class PydanticRoutesProcessor:
         if hasattr(model, "schema"):
             return model.schema(by_alias=False, ref_template="#/components/schemas/{model}")
         # если датакласс (pydantic 1.1) - тащим через встроенную модель
+        # TODO в 2.0 интерфейс поменялся, нужно будет доработать
         if hasattr(model, "__pydantic_model__"):
             return model.__pydantic_model__.schema(by_alias=False, ref_template="#/components/schemas/{model}")
 
         raise TypeError(f"Unsupported model type for OpenAPI schema: {model}")
 
-    @staticmethod
-    def _build_request_body_doc(model: BaseModel) -> dict:
-        model_schema = model.schema(by_alias=False, ref_template="#/components/schemas/{model}")
+
+    def _build_request_body_doc(self, model: BaseModel) -> dict:
+        model_schema = self.get_pydantic_schema(model)
 
         request_body = {
             "content": {
@@ -260,7 +271,7 @@ class PydanticRoutesProcessor:
                 })
 
         if query:
-            query_schema = query.schema(by_alias=False, ref_template="#/components/schemas/{model}")
+            query_schema = PydanticRoutesProcessor.get_pydantic_schema(query)
             for parameter_name, schema in query_schema["properties"].items():
                 parameters.append({
                     "in": "query",
