@@ -47,7 +47,6 @@ class SwaggerMethodInfo:
     request: typing.Optional[typing.Type[BaseModel]] = None
     query: typing.Optional[typing.Type[BaseModel]] = None
     tags: typing.Optional[typing.List[str]] = None
-    description: typing.Optional[str] = None
 
 
 def swagger_decorator(
@@ -56,15 +55,14 @@ def swagger_decorator(
         request: typing.Optional[typing.Type[BaseModel]] = None,
         query: typing.Optional[typing.Type[BaseModel]] = None,
         tags: typing.Optional[typing.List[str]] = None,
-        description: typing.Optional[str] = None,
 ):
     def decorator(f: typing.Callable) -> typing.Callable:
         f._swagger_info = SwaggerMethodInfo(
             responses=responses,
             request=request,
             query=query,
-            tags=tags,
-            description=description)
+            tags=tags
+        )
         return f
     return decorator
 
