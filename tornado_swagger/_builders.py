@@ -139,12 +139,13 @@ class PydanticRoutesProcessor:
                 response_models = swagger_info.responses
                 request_model = swagger_info.request
                 query_params = swagger_info.query
+                description = getattr(swagger_info, "description", None)
                 tags = swagger_info.tags
                 input_parameters = input_parameters_getter(method_callable)
                 out.update(
                     {
                         method_name: self.build_pydantic_docs(
-                            input_parameters, response_models, request_model, query_params, tags,
+                            input_parameters, response_models, request_model, query_params, tags, description=description
                         )
                     }
                 )
