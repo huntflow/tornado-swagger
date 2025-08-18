@@ -21,6 +21,9 @@ SWAGGER_TEMPLATE = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "templates", "swagger.yaml")
 )
 SWAGGER_DOC_SEPARATOR = "---"
+DEFAULT_SUCCESS_DESCRIPTION = "Successful Response"
+DEFAULT_FAIL_DESCRIPTION = "Bad request"
+DEFAULT_INTERNAL_SERVER_ERROR_DESCRIPTION = "Internal Server Error"
 
 
 PYTHON_TO_OPENAPI_MAPPER = {
@@ -161,10 +164,10 @@ class PydanticRoutesProcessor:
     @staticmethod
     def _generate_default_description(status_code: int) -> str:
         if status_code < 400:
-            return "Successful Response"
+            return DEFAULT_SUCCESS_DESCRIPTION
         elif status_code < 500:
-            return "Bad request"
-        return "Internal Server Error"
+            return DEFAULT_FAIL_DESCRIPTION
+        return DEFAULT_INTERNAL_SERVER_ERROR_DESCRIPTION
 
     def build_pydantic_docs(
         self,
@@ -204,6 +207,12 @@ class PydanticRoutesProcessor:
             description = response_model.get("description", None)
             if not description:
                 description = self._generate_default_description(status_code)
+
+            # если ручка отвечает только кодом, без модели
+            if model is None:
+                responses[status_code] = {"description": description}
+                continue
+
             model_spec = self.get_pydantic_schema(model)
             model_name = model.__name__
             # could cause conflicts for classes with same name
