@@ -21,6 +21,9 @@ SWAGGER_TEMPLATE = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "templates", "swagger.yaml")
 )
 SWAGGER_DOC_SEPARATOR = "---"
+DEFAULT_SUCCESS_DESCRIPTION = "Successful Response"
+DEFAULT_FAIL_DESCRIPTION = "Bad request"
+DEFAULT_INTERNAL_SERVER_ERROR_DESCRIPTION = "Internal Server Error"
 
 
 PYTHON_TO_OPENAPI_MAPPER = {
@@ -110,7 +113,13 @@ class PydanticRoutesProcessor:
 
     def extract_paths_pydantic(self, routes):
         for route in routes:
-            tornado_route = tornado.web.url(*route)
+            if isinstance(route, tornado.web.URLSpec):
+                tornado_route = route
+            elif isinstance(route, (list, tuple)):
+                tornado_route = tornado.web.url(*route)
+            else:
+                raise TypeError(f"Unsupported route type: {type(route)!r}")
+
             for method_name, method_description in self._build_doc_from_pydantic_handler(
                     tornado_route.target
             ).items():
@@ -133,12 +142,13 @@ class PydanticRoutesProcessor:
                 response_models = swagger_info.responses
                 request_model = swagger_info.request
                 query_params = swagger_info.query
+                description = getattr(swagger_info, "description", None)
                 tags = swagger_info.tags
                 input_parameters = input_parameters_getter(method_callable)
                 out.update(
                     {
                         method_name: self.build_pydantic_docs(
-                            input_parameters, response_models, request_model, query_params, tags,
+                            input_parameters, response_models, request_model, query_params, tags, description=description
                         )
                     }
                 )
@@ -154,10 +164,10 @@ class PydanticRoutesProcessor:
     @staticmethod
     def _generate_default_description(status_code: int) -> str:
         if status_code < 400:
-            return "Successful Response"
+            return DEFAULT_SUCCESS_DESCRIPTION
         elif status_code < 500:
-            return "Bad request"
-        return "Internal Server Error"
+            return DEFAULT_FAIL_DESCRIPTION
+        return DEFAULT_INTERNAL_SERVER_ERROR_DESCRIPTION
 
     def build_pydantic_docs(
         self,
@@ -166,15 +176,19 @@ class PydanticRoutesProcessor:
         request: typing.Optional[typing.Type[BaseModel]] = None,
         query: typing.Optional[typing.Type[BaseModel]] = None,
         tags: typing.Optional[typing.List[str]] = None,
+        *,
+        description=None,
     ):
         result = {}
 
+        if description:
+            result["description"] = description
         parameters = self._build_input_and_query_doc(input_parameters, query)
         if parameters:
             result["parameters"] = parameters
 
         if request:
-            model_spec = request.schema(by_alias=False, ref_template="#/components/schemas/{model}")
+            model_spec = self.get_pydantic_schema(request)
             if "definitions" in model_spec:
                 self._add_components_from_definitions(model_spec.pop("definitions"))
 
@@ -189,11 +203,17 @@ class PydanticRoutesProcessor:
 
         responses = {}
         for status_code, response_model in response_models.items():
-            model = response_model["model"]
+            model = response_model.get("model", None)
             description = response_model.get("description", None)
             if not description:
                 description = self._generate_default_description(status_code)
-            model_spec = model.schema(by_alias=False, ref_template="#/components/schemas/{model}")
+
+            # если ручка отвечает только кодом, без модели
+            if model is None:
+                responses[status_code] = {"description": description}
+                continue
+
+            model_spec = self.get_pydantic_schema(model)
             model_name = model.__name__
             # could cause conflicts for classes with same name
             if model_name not in self.components["schemas"]:
@@ -218,8 +238,20 @@ class PydanticRoutesProcessor:
         return result
 
     @staticmethod
-    def _build_request_body_doc(model: BaseModel) -> dict:
-        model_schema = model.schema(by_alias=False, ref_template="#/components/schemas/{model}")
+    def get_pydantic_schema(model) -> dict:
+        # если BaseModel - можем вытащить напрямую
+        if hasattr(model, "schema"):
+            return model.schema(by_alias=False, ref_template="#/components/schemas/{model}")
+        # если датакласс (pydantic 1.1) - тащим через встроенную модель
+        # TODO в 2.0 интерфейс поменялся, нужно будет доработать
+        if hasattr(model, "__pydantic_model__"):
+            return model.__pydantic_model__.schema(by_alias=False, ref_template="#/components/schemas/{model}")
+
+        raise TypeError(f"Unsupported model type for OpenAPI schema: {model}")
+
+
+    def _build_request_body_doc(self, model: BaseModel) -> dict:
+        model_schema = self.get_pydantic_schema(model)
 
         request_body = {
             "content": {
@@ -249,7 +281,7 @@ class PydanticRoutesProcessor:
                 })
 
         if query:
-            query_schema = query.schema(by_alias=False, ref_template="#/components/schemas/{model}")
+            query_schema = PydanticRoutesProcessor.get_pydantic_schema(query)
             for parameter_name, schema in query_schema["properties"].items():
                 parameters.append({
                     "in": "query",
